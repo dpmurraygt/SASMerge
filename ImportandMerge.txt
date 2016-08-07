@@ -8,6 +8,8 @@
 /* Post link to Live session unit 12 by next Monday/s live session */
 /* If you have to, you can physically import the files to your computer. */
 
+/*Assumes data files are already downloaded to your local hard drive, in a subdirectory of where this file is and with the file structure shown below.*/
+
 
 /* First, link the name msds6306 with the SAS library using libname command */
 libname msds6306 '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12';
