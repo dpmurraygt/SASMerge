@@ -1,0 +1,222 @@
+/* Live Session Unit 12 Assignment */
+/* Dennis Murray*/
+/* Some code sourced from the original file posted, notes from class, Asnyc videos.*/
+/* Download and import files into SAS using the code below */
+/* There is code for .xlsx, .xls, and .csv files */
+/* Merge the files into ONE Excel or CSV file */
+/* Commit the file to GitHub */
+/* Post link to Live session unit 12 by next Monday/s live session */
+/* If you have to, you can physically import the files to your computer. */
+
+/*Assumes data files are already downloaded to your local hard drive, in a subdirectory of where this file is and with the file structure shown below.*/
+
+
+/* First, link the name msds6306 with the SAS library using libname command */
+libname msds6306 '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12';
+libname datasets '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12\datasets';
+/* Now change the data name to avoid overwriting and because it's just too long. */
+/*Importing the base set of data to SAS to start.*/
+data edData;
+set msds6306.dataset1;
+STATE = UPCASE(State);
+run;
+
+/*For all of the CSV files, I'm going to update the State to be length 20 so they match to the incoming file*/
+/*I'm standardizing state name for the District of Columbia to "DC"*/
+/*I'm standardizing all of the state names to Upper case.*/
+
+/*This is the restaurant data.*/
+DATA restaurants;
+INFILE '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12\datasets\education_assignment_restaurants_vf.csv' DLM=',' FIRSTOBS=2;
+length State $20;
+INPUT state $ abb $ restaurants population RestPP RestHun;
+STATE=Upcase(State);
+IF ABB="DC" then State="DC";
+RUN;
+
+/*This is the poverty data.*/
+DATA Poverty;
+INFILE '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12\datasets\PovertyLevel.csv' DLM=',' FIRSTOBS=3;
+length state $20;
+INPUT state $ PctPoverty;
+STATE=upcase(State);
+RUN;
+
+/*THis is the school lunch data.*/
+DATA SchoolLunch;
+INFILE '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12\datasets\SchoolLunch.csv' DLM=',' FIRSTOBS=2;
+INPUT abb $ PctSchoolLunch;
+RUN;
+/*This is the count of electoral vote data */
+
+DATA ElectoralVotes;
+INFILE '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12\datasets\Shaw_Electoral_Votes.csv' DLM=',' FIRSTOBS=2;
+length state $20;
+INPUT state $ ElectoralVote;
+STATE=UPCASE(state);
+RUN;
+
+/*This is the Income Tax, Y or N data.  */
+DATA IncomeTax;
+INFILE '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12\datasets\States_HasStateIncomeTax.csv' DLM=',' FIRSTOBS=2;
+length state $20;
+INPUT state $ TaxYorN $;
+state=UPCASE(state);
+RUN;
+
+/*This is the Never Married? Data set.  It's an Excel file*/
+
+proc import file = '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12\datasets\AAbbottEducation.xlsx' out = NeverMarried dbms=xlsx replace; 
+/* for old .xls files, take out dbms option */
+getnames = yes;
+State=UPCASE(state);
+run;
+
+/*This is the Never Married? Data set, correct state name to Upper and change state DC*/
+
+data NeverMarried2;
+set NeverMarried;
+length state $20;
+State=UPCASE(state);
+IF state="DISTRICT OF COLUMBIA" then State="DC";
+
+run;
+
+
+/*This file doesn't have headers, so getnames=no. This is the High school graduation rate data*/
+
+proc import file = '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12\datasets\High school graduate 2009.xlsx' out = HighSchoolGrad dbms=xlsx replace; /* for old .xls files, take out dbms option */
+getnames=no;
+run;
+/*Force the variables to have names */
+
+data HighSchoolGrad1(rename=(A=State B=GradRate));
+set HighSchoolGrad;
+run;
+
+/*Force proper length for state, upper case, drop other columns*/
+
+data HighSchoolGrad3 (Keep=State GradRate);
+set HighSchoolGrad1;
+length State $20;
+STATE=UPCASE(State);
+run;
+
+/*Take the test scores data and fix state name to merge properly*/
+proc import file = '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12\datasets\testscores.xls' out = testscores dbms=xls; /* for old .xls files, take out dbms option */
+getnames=yes;
+run;
+
+
+/*Take the Test Scores data and fix state name to merge properly*/
+proc datasets delete testscores2;
+data testscores2 (Keep=State Pop Prop_grad);
+set testScores;
+length state $20;
+State=UPCASE(state);
+IF state="DISTRICT OF COLUMBIA" then State="DC";
+run;
+
+
+
+/*Import the unemployment data*/
+proc import file = '\\client\d$\Users\dmurray\Documents\iFolder\SMU\6306 Doing Data Science\Unit12\datasets\UnemploymentRate2016.xlsx' out = Unemployment dbms=xlsx; /* for old .xls files, take out dbms option */
+getnames=yes;
+run;
+
+/*Take the Unemployment data and fix state name to merge properly*/
+data unemployment2;
+set unemployment;
+length state $20;
+State=UPCASE(state);
+IF state="DISTRICT OF COLUMBIA" then State="DC";
+run;
+
+
+
+
+/*Merge Restaurants to the eddata file*/
+proc datasets delete step1;
+proc sort data = eddata; by State;
+proc sort data = Restaurants; by State; 
+data Step1;
+Merge Restaurants eddata;
+run;
+
+
+/*Merge Poverty data to Step1 file*/
+proc datasets delete step1;
+proc sort data = Poverty; by State;
+data Step2;
+Merge Poverty Step1; by state;
+run;
+
+
+/*Merge School Lunch to the Step 2 file*/
+proc dataset delete step2a;
+proc sort data = SchoolLunch; by abb;
+proc sort data = Step2 OUT=Step2a; 
+by abb;
+proc dataset delete Step3;
+data Step3;
+Merge SchoolLunch Step2a; by abb;
+
+
+/*Merge Income tax to Step 3 data*/
+proc dataset delete Step4;
+proc sort data=Step3; by state;
+proc sort data = IncomeTax; by state;
+data Step4;
+Merge Step3 IncomeTax; by state;
+run;
+
+/*Merge Unemployment data*/
+proc datasets delete Step5;
+proc sort data=Unemployment2; by state;
+data Step5;
+Merge Step4 Unemployment2; by state;
+run;
+
+/*Merge Electoral Votes data*/
+proc datasets delete Step6;
+proc sort data=ElectoralVotes; by state;
+data Step6;
+Merge Step5 ElectoralVotes; by state;
+run;
+
+
+
+/*Merge Test Score Data*/
+proc datasets delete Step7;
+proc sort data=testscores2; by state;
+data Step7;
+Merge Step6 testscores2; by state;
+run;
+
+/*Merge High School Graduation Rate*/
+proc datasets delete Step8;
+proc sort data=HighSchoolGrad3; by state;
+data Step8;
+Merge Step7 HighSchoolGrad3; by state;
+run;
+
+
+/*Merge NeverMarried*/
+proc datasets delete Step9;
+proc sort data=NeverMarried2; by state;
+data Step9;
+Merge Step8 NeverMarried2; by state;
+run;
+
+/*Send the data to a Final Table, drop a few items*/
+
+data FinalTable;
+retain State Abb Population PctSchoolLunch PctPoverty RestPP RestHun SAT_Pct_tested SATReading SATMATH SATWriting SATComb ACT_PCT_TESTED ACTEnglish ACTMath ACTReading ACTScience ACTComb Prop_Grad TaxYorN UnemployRate ElectoralVote GradRate PctMaleNeverMar PctFemaleNeverMar;
+set Step9;
+run;
+
+proc print data=FinalTable;Run;
+
+data msds6306.dataset1;
+set FinalTable;
+run;
